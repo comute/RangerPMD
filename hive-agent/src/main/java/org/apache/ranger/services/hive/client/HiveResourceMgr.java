@@ -37,6 +37,7 @@ public class HiveResourceMgr {
 	private static final String  TABLE	 	  = "table";
 	private static final String  UDF	 	  = "udf";
 	private static final String  COLUMN	 	  = "column";
+	private static final String  INDEX	 	  = "index";
 
 	
 	public static HashMap<String, Object> connectionTest(String serviceName, Map<String, String> configs) throws Exception {
@@ -70,10 +71,12 @@ public class HiveResourceMgr {
 		List<String> 				tableList	 = null;
 		List<String> 				udfList	  	 = null;
 		List<String> 				columnList	 = null;
+		List<String> 				indexList	 = null;
 		String  					databaseName = null;
 		String  					tableName	 = null;
 		String  					udfName	  	 = null;
 		String  					columnName	 = null;
+		String  					indexName	 = null;
 
 		
 		if(LOG.isDebugEnabled()) {
@@ -86,6 +89,7 @@ public class HiveResourceMgr {
 				tableList = resourceMap.get(TABLE); 
 				udfList = resourceMap.get(UDF); 
 				columnList = resourceMap.get(COLUMN); 
+				indexList = resourceMap.get(INDEX);
 				} 
 				switch (resource.trim().toLowerCase()) {
 				case DATABASE:
@@ -99,6 +103,9 @@ public class HiveResourceMgr {
 						break;
 				case COLUMN:
 						columnName    = userInput;
+						break;
+				case INDEX:
+						indexName    = userInput;
 						break;
 				default:
 						break;
@@ -124,6 +131,7 @@ public class HiveResourceMgr {
 				final List<String> finaltableList 	 = tableList;
 				final List<String> finaludfList		 = udfList;
 				final List<String> finalcolumnList   = columnList;
+				final List<String> finalindexList   = indexList;
 				
 				
 				if ( hiveClient != null) {
