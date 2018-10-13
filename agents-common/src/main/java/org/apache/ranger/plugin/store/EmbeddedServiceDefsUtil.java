@@ -65,6 +65,7 @@ public class EmbeddedServiceDefsUtil {
 	public static final String EMBEDDED_SERVICEDEF_NIFI_REGISTRY_NAME  = "nifi-registry";
 	public static final String EMBEDDED_SERVICEDEF_ATLAS_NAME  = "atlas";
 	public static final String EMBEDDED_SERVICEDEF_WASB_NAME  = "wasb";
+	public static final String EMBEDDED_SERVICEDEF_ADLS_NAME  = "adls";
 	public static final String EMBEDDED_SERVICEDEF_SQOOP_NAME = "sqoop";
 	public static final String EMBEDDED_SERVICEDEF_KYLIN_NAME  = "kylin";
 
@@ -98,6 +99,7 @@ public class EmbeddedServiceDefsUtil {
 	private RangerServiceDef nifiRegistryServiceDef;
 	private RangerServiceDef atlasServiceDef;
 	private RangerServiceDef wasbServiceDef;
+	private RangerServiceDef adlsServiceDef;
 	private RangerServiceDef sqoopServiceDef;
 	private RangerServiceDef kylinServiceDef;
 
@@ -140,6 +142,7 @@ public class EmbeddedServiceDefsUtil {
 
 			tagServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_TAG_NAME);
 			wasbServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_WASB_NAME);
+			adlsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_ADLS_NAME);
 			sqoopServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_SQOOP_NAME);
 			kylinServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KYLIN_NAME);
 
@@ -211,6 +214,8 @@ public class EmbeddedServiceDefsUtil {
 	public long getTagServiceDefId() { return getId(tagServiceDef); }
 
 	public long getWasbServiceDefId() { return getId(wasbServiceDef); }
+
+	public long getAdlsServiceDefId() { return getId(adlsServiceDef); }
 
 	public RangerServiceDef getEmbeddedServiceDef(String defType) throws Exception {
 		RangerServiceDef serviceDef=null;
