@@ -30,6 +30,9 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
+import org.elasticsearch.action.admin.indices.close.CloseIndexRequest;
+import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheRequest;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
@@ -57,7 +60,11 @@ public class RequestUtils {
 		List<String> indexs = new ArrayList<>();
 
 		if (request instanceof SingleShardRequest) {
-			indexs.add(((SingleShardRequest<?>) request).index());
+			String index = (SingleShardRequest<?>) request).index();
+			if (index == null) {
+				return Arrays.asList("*");
+			}
+			indexs.add(index);
 			return indexs;
 		}
 
@@ -86,15 +93,33 @@ public class RequestUtils {
 		}
 
 		if (request instanceof SearchRequest) {
-			return Arrays.asList(((SearchRequest) request).indices());
+			indexs = Arrays.asList(((SearchRequest) request).indices());
+			return indexs.size() == 0? Arrays.asList("*") : indexs;
 		}
 
 		if (request instanceof IndicesStatsRequest) {
-			return Arrays.asList(((IndicesStatsRequest) request).indices());
+			indexs = Arrays.asList(((IndicesStatsRequest) request).indices());
+			return indexs.size() == 0? Arrays.asList("*") : indexs;
 		}
 
 		if (request instanceof OpenIndexRequest) {
-			return Arrays.asList(((OpenIndexRequest) request).indices());
+			indexs = Arrays.asList(((OpenIndexRequest) request).indices());
+			return indexs.size() == 0? Arrays.asList("*") : indexs;
+		}
+
+		if (request instanceof CloseIndexRequest) {
+			indexs = Arrays.asList(((CloseIndexRequest) request).indices());
+			return indexs.size() == 0? Arrays.asList("*") : indexs;
+		}
+
+		if (request instanceof ClearIndicesCacheRequest) {
+			indexs = Arrays.asList(((ClearIndicesCacheRequest) request).indices());
+			return indexs.size() == 0? Arrays.asList("*") : indexs;
+		}
+
+		if (request instanceof UpdateSettingsRequest) {
+			indexs = Arrays.asList(((UpdateSettingsRequest) request).indices());
+			return indexs.size() == 0? Arrays.asList("*") : indexs;
 		}
 
 		if (request instanceof DeleteIndexRequest) {
