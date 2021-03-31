@@ -617,7 +617,7 @@ update_properties() {
 		newPropertyValue="net.sf.log4jdbc.DriverSpy"
 		updatePropertyToFilePy $propertyName $newPropertyValue $to_file_default
 
-		propertyName=ranger.jpa.jdbc.preferredtestquery
+		propertyName=ranger.jpa.jdbc.connectiontestquery
 		newPropertyValue="select 1;"
 		updatePropertyToFilePy $propertyName "${newPropertyValue}" $to_file_default
 	fi
@@ -651,7 +651,7 @@ update_properties() {
 		newPropertyValue="oracle.jdbc.OracleDriver"
 		updatePropertyToFilePy $propertyName $newPropertyValue $to_file_default
 
-		propertyName=ranger.jpa.jdbc.preferredtestquery
+		propertyName=ranger.jpa.jdbc.connectiontestquery
 		newPropertyValue="select 1 from dual;"
 		updatePropertyToFilePy $propertyName "${newPropertyValue}" $to_file_default
 	fi
@@ -693,7 +693,7 @@ update_properties() {
 		newPropertyValue="org.postgresql.Driver"
 		updatePropertyToFilePy $propertyName $newPropertyValue $to_file_default
 
-		propertyName=ranger.jpa.jdbc.preferredtestquery
+		propertyName=ranger.jpa.jdbc.connectiontestquery
 		newPropertyValue="select 1;"
 		updatePropertyToFilePy $propertyName "${newPropertyValue}" $to_file_default
 	fi
@@ -720,7 +720,7 @@ update_properties() {
 		newPropertyValue="com.microsoft.sqlserver.jdbc.SQLServerDriver"
 		updatePropertyToFilePy $propertyName $newPropertyValue $to_file_default
 
-		propertyName=ranger.jpa.jdbc.preferredtestquery
+		propertyName=ranger.jpa.jdbc.connectiontestquery
 		newPropertyValue="select 1;"
 		updatePropertyToFilePy $propertyName "${newPropertyValue}" $to_file_default
 	fi
@@ -747,7 +747,7 @@ update_properties() {
 		newPropertyValue="sap.jdbc4.sqlanywhere.IDriver"
 		updatePropertyToFilePy $propertyName $newPropertyValue $to_file_default
 
-		propertyName=ranger.jpa.jdbc.preferredtestquery
+		propertyName=ranger.jpa.jdbc.connectiontestquery
 		newPropertyValue="select 1;"
 		updatePropertyToFilePy $propertyName "${newPropertyValue}" $to_file_default
 	fi
