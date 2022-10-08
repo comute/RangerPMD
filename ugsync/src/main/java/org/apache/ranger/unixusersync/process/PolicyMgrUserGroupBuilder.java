@@ -964,29 +964,29 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 		if(LOG.isDebugEnabled()){
 			LOG.debug("==> PolicyMgrUserGroupBuilder.getUsers()");
 		}
+		final int totalCount = Math.max(0, xUserList.getTotalCount());
+		final int pageSize = Integer.valueOf(recordsToPullPerCall);
 		int ret = 0;
-		int totalCount = xUserList.getTotalCount();
-		int uploadedCount = -1;
-		int pageSize = Integer.valueOf(recordsToPullPerCall);
+		int uploadedCount = 0;
 		while (uploadedCount < totalCount) {
 			String response = null;
 			ClientResponse clientRes = null;
-			String relativeUrl = PM_ADD_USERS_URI;
 			GetXUserListResponse pagedXUserList = new GetXUserListResponse();
-			int pagedXUserListLen = uploadedCount+pageSize;
-			pagedXUserList.setXuserInfoList(xUserList.getXuserInfoList().subList(uploadedCount+1,
-					pagedXUserListLen>totalCount?totalCount:pagedXUserListLen));
 			pagedXUserList.setTotalCount(pageSize);
+
+			final int pagedXUserListLen = Math.min(totalCount, (uploadedCount + pageSize));
+			pagedXUserList.setXuserInfoList(xUserList.getXuserInfoList().subList(uploadedCount, pagedXUserListLen));
+
 			if (pagedXUserList.getXuserInfoList().size() == 0) {
 				LOG.info("PolicyMgrUserGroupBuilder.getUsers() done updating users");
 				return 1;
 			}
 
 			if (isRangerCookieEnabled) {
-				response = cookieBasedUploadEntity(pagedXUserList, relativeUrl);
+				response = cookieBasedUploadEntity(pagedXUserList, PM_ADD_USERS_URI);
 			} else {
 				try {
-					clientRes = ldapUgSyncClient.post(relativeUrl, null, pagedXUserList);
+					clientRes = ldapUgSyncClient.post(PM_ADD_USERS_URI, null, pagedXUserList);
 					if (clientRes != null) {
 						response = clientRes.getEntity(String.class);
 					}
@@ -1011,7 +1011,7 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 				LOG.error("Failed to addOrUpdateUsers " + uploadedCount );
 				throw new Exception("Failed to addOrUpdateUsers" + uploadedCount);
 			}
-			LOG.info("ret = " + ret + " No. of users uploaded to ranger admin= " + (uploadedCount>totalCount?totalCount:uploadedCount));
+			LOG.info("ret = " + ret + " No. of users uploaded to ranger admin= " + uploadedCount);
 		}
 
 		if(LOG.isDebugEnabled()){
@@ -1066,25 +1066,25 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 		if(LOG.isDebugEnabled()){
 			LOG.debug("==> PolicyMgrUserGroupBuilder.getGroups()");
 		}
+		final int totalCount = Math.max(0, xGroupList.getTotalCount());
+		final int pageSize = Integer.valueOf(recordsToPullPerCall);
 		int ret = 0;
-		int totalCount = xGroupList.getTotalCount();
 		int uploadedCount = -1;
-		int pageSize = Integer.valueOf(recordsToPullPerCall);
 		while (uploadedCount < totalCount) {
 			String response = null;
 			ClientResponse clientRes = null;
-			String relativeUrl = PM_ADD_GROUPS_URI;
 			GetXGroupListResponse pagedXGroupList = new GetXGroupListResponse();
-			int pagedXGroupListLen = uploadedCount+pageSize;
-			pagedXGroupList.setXgroupInfoList(xGroupList.getXgroupInfoList().subList(uploadedCount+1,
-					pagedXGroupListLen>totalCount?totalCount:pagedXGroupListLen));
 			pagedXGroupList.setTotalCount(pageSize);
 
+			final int pagedXGroupListLen = Math.min(totalCount, (uploadedCount + pageSize));
+			pagedXGroupList
+					.setXgroupInfoList(xGroupList.getXgroupInfoList().subList(uploadedCount, pagedXGroupListLen));
+
 			if (isRangerCookieEnabled) {
-				response = cookieBasedUploadEntity(pagedXGroupList, relativeUrl);
+				response = cookieBasedUploadEntity(pagedXGroupList, PM_ADD_GROUPS_URI);
 			} else {
 				try {
-					clientRes = ldapUgSyncClient.post(relativeUrl, null, pagedXGroupList);
+					clientRes = ldapUgSyncClient.post(PM_ADD_GROUPS_URI, null, pagedXGroupList);
 					if (clientRes != null) {
 						response = clientRes.getEntity(String.class);
 					}
@@ -1109,7 +1109,7 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 				LOG.error("Failed to addOrUpdateGroups " + uploadedCount );
 				throw new Exception("Failed to addOrUpdateGroups " + uploadedCount);
 			}
-			LOG.info("ret = " + ret + " No. of groups uploaded to ranger admin= " + (uploadedCount>totalCount?totalCount:uploadedCount));
+			LOG.info("ret = " + ret + " No. of groups uploaded to ranger admin= " + uploadedCount);
 		}
 
 		if(LOG.isDebugEnabled()){
@@ -1160,24 +1160,24 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 		if(LOG.isDebugEnabled()){
 			LOG.debug("==> PolicyMgrUserGroupBuilder.getGroupUsers()");
 		}
+		final int totalCount = Math.max(0, groupUserInfoList.size());
+		final int pageSize = Integer.valueOf(recordsToPullPerCall);
 		int ret = 0;
-		int totalCount = groupUserInfoList.size();
 		int uploadedCount = -1;
-		int pageSize = Integer.valueOf(recordsToPullPerCall);
 		while (uploadedCount < totalCount) {
 			String response = null;
 			ClientResponse clientRes = null;
-			String relativeUrl = PM_ADD_GROUP_USER_LIST_URI;
 
-			int pagedGroupUserInfoListLen = uploadedCount+pageSize;
-			List<GroupUserInfo> pagedGroupUserInfoList = groupUserInfoList.subList(uploadedCount+1,
-					pagedGroupUserInfoListLen>totalCount?totalCount:pagedGroupUserInfoListLen);
+			final int pagedGroupUserInfoListLen = Math.min(totalCount, (uploadedCount + pageSize));
+
+			List<GroupUserInfo> pagedGroupUserInfoList = groupUserInfoList.subList(uploadedCount,
+					pagedGroupUserInfoListLen);
 
 			if (isRangerCookieEnabled) {
-				response = cookieBasedUploadEntity(pagedGroupUserInfoList, relativeUrl);
+				response = cookieBasedUploadEntity(pagedGroupUserInfoList, PM_ADD_GROUP_USER_LIST_URI);
 			} else {
 				try {
-					clientRes = ldapUgSyncClient.post(relativeUrl, null, pagedGroupUserInfoList);
+					clientRes = ldapUgSyncClient.post(PM_ADD_GROUP_USER_LIST_URI, null, pagedGroupUserInfoList);
 					if (clientRes != null) {
 						response = clientRes.getEntity(String.class);
 					}
@@ -1203,7 +1203,7 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 				throw new Exception("Failed to addOrUpdateGroupUsers " + uploadedCount);
 			}
 
-			LOG.info("ret = " + ret + " No. of group memberships uploaded to ranger admin= " + (uploadedCount>totalCount?totalCount:uploadedCount));
+			LOG.info("ret = " + ret + " No. of group memberships uploaded to ranger admin= " + uploadedCount);
 		}
 
 		if(LOG.isDebugEnabled()){
@@ -1247,14 +1247,14 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 		}
 		List<String> ret = null;
 		try {
-			int totalCount = ugRoleAssignments.getUsers().size();
+			final int totalCount = Math.max(0, ugRoleAssignments.getUsers().size());
+			final int pageSize = Integer.valueOf(recordsToPullPerCall);
 			int uploadedCount = -1;
-			int pageSize = Integer.valueOf(recordsToPullPerCall);
 			while (uploadedCount < totalCount) {
-				int pagedUgRoleAssignmentsListLen = uploadedCount + pageSize;
+				final int pagedUgRoleAssignmentsListLen = Math.min(totalCount, (uploadedCount + pageSize));
+
 				UsersGroupRoleAssignments pagedUgRoleAssignmentsList = new UsersGroupRoleAssignments();
-				pagedUgRoleAssignmentsList.setUsers(ugRoleAssignments.getUsers().subList(uploadedCount + 1,
-						pagedUgRoleAssignmentsListLen > totalCount ? totalCount : pagedUgRoleAssignmentsListLen));
+				pagedUgRoleAssignmentsList.setUsers(ugRoleAssignments.getUsers().subList(uploadedCount, pagedUgRoleAssignmentsListLen));
 				pagedUgRoleAssignmentsList.setGroupRoleAssignments(ugRoleAssignments.getGroupRoleAssignments());
 				pagedUgRoleAssignmentsList.setUserRoleAssignments(ugRoleAssignments.getUserRoleAssignments());
 				pagedUgRoleAssignmentsList.setWhiteListGroupRoleAssignments(ugRoleAssignments.getWhiteListGroupRoleAssignments());
@@ -1264,16 +1264,15 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 				ClientResponse clientRes = null;
 				Gson gson = new GsonBuilder().create();
 				String jsonString = gson.toJson(pagedUgRoleAssignmentsList);
-				String url = PM_UPDATE_USERS_ROLES_URI;
 
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("USER role MAPPING" + jsonString);
 				}
 				if (isRangerCookieEnabled) {
-					response = cookieBasedUploadEntity(pagedUgRoleAssignmentsList, url);
+					response = cookieBasedUploadEntity(pagedUgRoleAssignmentsList, PM_UPDATE_USERS_ROLES_URI);
 				} else {
 					try {
-						clientRes = ldapUgSyncClient.post(url, null, ugRoleAssignments);
+						clientRes = ldapUgSyncClient.post(PM_UPDATE_USERS_ROLES_URI, null, ugRoleAssignments);
 						if (clientRes != null) {
 							response = clientRes.getEntity(String.class);
 						}
