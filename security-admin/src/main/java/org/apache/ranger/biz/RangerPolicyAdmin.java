@@ -19,6 +19,7 @@
 
 package org.apache.ranger.biz;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,10 +58,12 @@ public interface RangerPolicyAdmin {
 
     Set<String> getRolesFromUserAndGroups(String user, Set<String> groups);
 
+    Collection<String> getZoneNamesForResource(Map<String, ?> resource);
+
     String getUniquelyMatchedZoneName(GrantRevokeRequest grantRevokeRequest);
 
     // This API is used only by test-code
-    boolean isAccessAllowedByUnzonedPolicies(Map<String, RangerPolicyResource> resources, String user, Set<String> userGroups, String accessType);
+    boolean isAccessAllowedByUnzonedPolicies(Map<String, RangerPolicyResource> resources, List<Map<String, RangerPolicyResource>> additionalResources, String user, Set<String> userGroups, String accessType);
 
     // This API is used only by test-code
     List<RangerPolicy> getAllowedUnzonedPolicies(String user, Set<String> userGroups, String accessType);

@@ -24,7 +24,7 @@
     <url>http://ranger.apache.org/</url>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.apache.ranger</groupId>
-    <version>2.3.0</version>
+    <version>2.4.1-SNAPSHOT</version>
     <artifactId>ranger</artifactId>
     <packaging>pom</packaging>
     <licenses>
@@ -344,7 +344,7 @@
                 <role>Committer</role>
             </roles>
             <organization>
-                Freestone Infotech
+                Cloudera
             </organization>
 	</developer>
         <developer>
@@ -565,6 +565,10 @@
         <contributor>
           	<name>Peng Xing</name>
           	<organization></organization>
+        </contributor>
+        <contributor>
+            <name>Ramachandran Krishnan</name>
+            <organization>Oracle</organization>
         </contributor>
         <contributor>
           	<name>Rich Haase</name>

@@ -24,7 +24,7 @@ xmlns:oauth="http://www.springframework.org/schema/security/oauth2"
 xsi:schemaLocation="http://www.springframework.org/schema/beans
 http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
 http://www.springframework.org/schema/security
-http://www.springframework.org/schema/security/spring-security-5.6.xsd
+http://www.springframework.org/schema/security/spring-security-5.7.xsd
 http://www.springframework.org/schema/util
 http://www.springframework.org/schema/util/spring-util-4.3.xsd
 http://www.springframework.org/schema/security/oauth2
@@ -104,6 +104,9 @@ http://www.springframework.org/schema/security/spring-security-oauth2-2.0.xsd">
     </beans:bean>
 
 	<beans:bean id="CSRFPreventionFilter" class="org.apache.ranger.security.web.filter.RangerCSRFPreventionFilter">
+    </beans:bean>
+
+	<beans:bean id="mdcFilter" class="org.apache.ranger.security.web.filter.RangerMDCFilter">
     </beans:bean>
 
     <beans:bean id="ssoAuthenticationFilter" class="org.apache.ranger.security.web.filter.RangerSSOAuthenticationFilter">

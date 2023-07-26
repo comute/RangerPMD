@@ -46,7 +46,9 @@ public class RangerServicePoliciesCache {
 	private static final int MAX_WAIT_TIME_FOR_UPDATE = 10;
 
 	public static volatile RangerServicePoliciesCache sInstance = null;
-	private final int waitTimeInSeconds;
+
+	private final int     waitTimeInSeconds;
+	private final boolean dedupStrings;
 
 	private final Map<String, ServicePoliciesWrapper> servicePoliciesMap = new HashMap<>();
 
@@ -65,6 +67,7 @@ public class RangerServicePoliciesCache {
 		RangerAdminConfig config = RangerAdminConfig.getInstance();
 
 		waitTimeInSeconds = config.getInt("ranger.admin.policy.download.cache.max.waittime.for.update", MAX_WAIT_TIME_FOR_UPDATE);
+		dedupStrings      = config.getBoolean("ranger.admin.policy.dedup.strings", Boolean.TRUE);
 	}
 
 	public void dump() {
@@ -138,6 +141,50 @@ public class RangerServicePoliciesCache {
 
 		return ret;
 	}
+
+    /**
+     * Reset policy cache using serviceName if provided.
+     * If serviceName is empty, reset everything.
+     * @param serviceName
+     * @return true if was able to reset policy cache, false otherwise
+     */
+    public boolean resetCache(final String serviceName) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("==> RangerServicePoliciesCache.resetCache({})", serviceName);
+        }
+
+        boolean ret = false;
+        synchronized (this) {
+            if (!servicePoliciesMap.isEmpty()) {
+                if (StringUtils.isBlank(serviceName)) {
+                    servicePoliciesMap.clear();
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("RangerServicePoliciesCache.resetCache(): Removed policy caching for all services.");
+                    }
+                    ret = true;
+                } else {
+                    ServicePoliciesWrapper removedServicePoliciesWrapper = servicePoliciesMap.remove(serviceName.trim()); // returns null if key not found
+                    ret = removedServicePoliciesWrapper != null;
+
+                    if (ret) {
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("RangerServicePoliciesCache.resetCache(): Removed policy caching for [{}] service.", serviceName);
+                        }
+                    } else {
+                        LOG.warn("RangerServicePoliciesCache.resetCache(): Caching for [{}] service not found, hence reset is skipped.", serviceName);
+                    }
+                }
+            } else {
+                LOG.warn("RangerServicePoliciesCache.resetCache(): Policy cache is already empty.");
+            }
+        }
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("<== RangerServicePoliciesCache.resetCache(): ret={}", ret);
+        }
+
+        return ret;
+    }
 
 	private class ServicePoliciesWrapper {
 		final Long          serviceId;
@@ -269,9 +316,8 @@ public class RangerServicePoliciesCache {
 				}
 
 				final long            startTimeMs           = System.currentTimeMillis();
+				final ServicePolicies servicePoliciesFromDb = serviceStore.getServicePolicyDeltasOrPolicies(serviceName, cachedServicePoliciesVersion);
 				final long            dbLoadTime            = System.currentTimeMillis() - startTimeMs;
-
-				ServicePolicies       servicePoliciesFromDb = serviceStore.getServicePolicyDeltasOrPolicies(serviceName, cachedServicePoliciesVersion);
 
 				if (dbLoadTime > longestDbLoadTimeInMs) {
 					longestDbLoadTimeInMs = dbLoadTime;
@@ -279,6 +325,10 @@ public class RangerServicePoliciesCache {
 				updateTime = new Date();
 
 				if (servicePoliciesFromDb != null) {
+					if (dedupStrings) {
+						servicePoliciesFromDb.dedupStrings();
+					}
+
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("Successfully loaded ServicePolicies from database: ServicePolicies:[" + servicePoliciesFromDb + "]");
 					}

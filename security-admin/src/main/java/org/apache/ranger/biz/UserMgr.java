@@ -530,17 +530,17 @@ public class UserMgr {
 												MessageEnums.OPER_NO_PERMISSION, null, null, ""
 														+ changeEmail);
 					}
-			} else {
-				String encryptedOldPwd = encrypt(gjUser.getLoginId(), changeEmail.getOldPassword());
+		} else {
+			String encryptedOldPwd = encrypt(gjUser.getLoginId(), changeEmail.getOldPassword());
+			if (!stringUtil.equals(encryptedOldPwd, gjUser.getPassword())) {
+				encryptedOldPwd = encryptWithOlderAlgo(gjUser.getLoginId(), changeEmail.getOldPassword());
 				if (!stringUtil.equals(encryptedOldPwd, gjUser.getPassword())) {
-					logger.info("changeEmailAddress(). Invalid  password. changeEmail="
-							+ changeEmail);
-					throw restErrorUtil.createRESTException(
-							"serverMsg.userMgrWrongPassword",
-							MessageEnums.OPER_NO_PERMISSION, null, null, ""
-									+ changeEmail);
+					logger.info("changeEmailAddress(). Invalid  password. changeEmail=" + changeEmail);
+					throw restErrorUtil.createRESTException("serverMsg.userMgrWrongPassword",
+							MessageEnums.OPER_NO_PERMISSION, null, null, "" + changeEmail);
 				}
 			}
+		}
 
 		// Normalize email. Make it lower case
 		gjUser.setEmailAddress(stringUtil.normalizeEmail(changeEmail
@@ -1174,9 +1174,9 @@ public class UserMgr {
 			String sha256PasswordUpdateDisable = PropertiesUtil.getProperty("ranger.sha256Password.update.disable", "false");
 
 			if ("false".equalsIgnoreCase(sha256PasswordUpdateDisable)) {
-				saltEncodedpasswd = encodeString(password, loginId, "MD5");
-			} else {
 				saltEncodedpasswd = encodeString(password, loginId, "SHA-256");
+			} else {
+				saltEncodedpasswd = encodeString(password, loginId, "MD5");
 			}
 		}
 		

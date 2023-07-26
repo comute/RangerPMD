@@ -44,6 +44,7 @@ import org.apache.ranger.plugin.util.RangerAccessRequestUtil;
 import org.apache.ranger.plugin.util.RangerCommonConstants;
 import org.apache.ranger.plugin.util.RangerPerfTracer;
 import org.apache.ranger.plugin.util.RangerReadWriteLock;
+import org.apache.ranger.plugin.util.RangerResourceEvaluatorsRetriever;
 import org.apache.ranger.plugin.util.RangerServiceNotFoundException;
 import org.apache.ranger.plugin.util.RangerServiceTagsDeltaUtil;
 import org.apache.ranger.plugin.util.ServiceTags;
@@ -62,6 +63,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
@@ -85,6 +87,7 @@ public class RangerTagEnricher extends RangerAbstractContextEnricher {
 	private boolean                            disableTrieLookupPrefilter;
 	private EnrichedServiceTags                enrichedServiceTags;
 	private boolean                            disableCacheIfServiceNotFound = true;
+	private boolean                            dedupStrings                  = true;
 
 	private final BlockingQueue<DownloadTrigger> tagDownloadQueue = new LinkedBlockingQueue<>();
 	private Timer                              tagDownloadTimer;
@@ -100,13 +103,13 @@ public class RangerTagEnricher extends RangerAbstractContextEnricher {
 
 		super.init();
 
+		String propertyPrefix        = getPropertyPrefix();
 		String tagRetrieverClassName = getOption(TAG_RETRIEVER_CLASSNAME_OPTION);
+		long   pollingIntervalMs     = getLongOption(TAG_REFRESHER_POLLINGINTERVAL_OPTION, 60 * 1000);
 
-		long pollingIntervalMs = getLongOption(TAG_REFRESHER_POLLINGINTERVAL_OPTION, 60 * 1000);
-
+		dedupStrings               = getBooleanConfig(propertyPrefix + ".dedup.strings", true);
 		disableTrieLookupPrefilter = getBooleanOption(TAG_DISABLE_TRIE_PREFILTER_OPTION, false);
-
-		serviceDefHelper = new RangerServiceDefHelper(serviceDef, false);
+		serviceDefHelper           = new RangerServiceDefHelper(serviceDef, false);
 
 		if (StringUtils.isNotBlank(tagRetrieverClassName)) {
 
@@ -127,7 +130,6 @@ public class RangerTagEnricher extends RangerAbstractContextEnricher {
 			}
 
 			if (tagRetriever != null) {
-				String propertyPrefix    = "ranger.plugin." + serviceDef.getName();
 				disableCacheIfServiceNotFound = getBooleanConfig(propertyPrefix + ".disable.cache.if.servicenotfound", true);
 				String cacheDir      = getConfig(propertyPrefix + ".policy.cache.dir", null);
 				String cacheFilename = String.format("%s_%s_tag.json", appId, serviceName);
@@ -303,6 +305,10 @@ public class RangerTagEnricher extends RangerAbstractContextEnricher {
 				LOG.info("ServiceTags is null for service " + serviceName);
 				enrichedServiceTags = null;
 			} else {
+				if (dedupStrings) {
+					serviceTags.dedupStrings();
+				}
+
 				if (!serviceTags.getIsDelta()) {
 					processServiceTags(serviceTags);
 				} else {
@@ -398,7 +404,7 @@ public class RangerTagEnricher extends RangerAbstractContextEnricher {
 	}
 
 	protected RangerReadWriteLock createLock() {
-		String             propertyPrefix        = "ranger.plugin." + serviceDef.getName();
+		String             propertyPrefix        = getPropertyPrefix();
 		RangerPluginConfig config                = getPluginConfig();
 		boolean            deltasEnabled         = config != null && config.getBoolean(propertyPrefix + RangerCommonConstants.PLUGIN_CONFIG_SUFFIX_TAG_DELTA, RangerCommonConstants.PLUGIN_CONFIG_SUFFIX_TAG_DELTA_DEFAULT);
 		boolean            inPlaceUpdatesEnabled = config != null && config.getBoolean(propertyPrefix + RangerCommonConstants.PLUGIN_CONFIG_SUFFIX_IN_PLACE_TAG_UPDATES, RangerCommonConstants.PLUGIN_CONFIG_SUFFIX_IN_PLACE_TAG_UPDATES_DEFAULT);
@@ -414,44 +420,39 @@ public class RangerTagEnricher extends RangerAbstractContextEnricher {
 			LOG.debug("Processing all service-tags");
 		}
 
-		boolean isInError = false;
-
 		if (CollectionUtils.isEmpty(serviceTags.getServiceResources())) {
 			LOG.info("There are no tagged resources for service " + serviceName);
 			enrichedServiceTags = null;
 		} else {
-
-			ResourceHierarchies    hierarchies      = new ResourceHierarchies();
-
+			ResourceHierarchies                hierarchies      = new ResourceHierarchies();
 			List<RangerServiceResourceMatcher> resourceMatchers = new ArrayList<>();
 			List<RangerServiceResource>        serviceResources = serviceTags.getServiceResources();
 
-			for (RangerServiceResource serviceResource : serviceResources) {
+			for (ListIterator<RangerServiceResource> iter = serviceResources.listIterator(); iter.hasNext(); ) {
+				RangerServiceResource        serviceResource        = iter.next();
 				RangerServiceResourceMatcher serviceResourceMatcher = createRangerServiceResourceMatcher(serviceResource, serviceDefHelper, hierarchies);
+
 				if (serviceResourceMatcher != null) {
 					resourceMatchers.add(serviceResourceMatcher);
 				} else {
-					LOG.error("Could not create service-resource-matcher for service-resource:[" + serviceResource + "]");
-					isInError = true;
-					break;
+					iter.remove();
+
+					List<Long> tags = serviceTags.getResourceToTagIds().remove(serviceResource.getId());
+
+					LOG.warn("Invalid resource [" + serviceResource + "]: failed to create resource-matcher. Ignoring " + (tags != null ? tags.size() : 0) + " tags associated with the resource");
 				}
 			}
 
-			if (isInError) {
-				serviceTags.setTagVersion(-1L);
-				LOG.error("Error in processing tag-deltas. Will continue to use old tags");
-			} else {
-				Map<String, RangerResourceTrie<RangerServiceResourceMatcher>> serviceResourceTrie = null;
+			Map<String, RangerResourceTrie<RangerServiceResourceMatcher>> serviceResourceTrie = null;
 
-				if (!disableTrieLookupPrefilter) {
-					serviceResourceTrie = new HashMap<>();
+			if (!disableTrieLookupPrefilter) {
+				serviceResourceTrie = new HashMap<>();
 
-					for (RangerServiceDef.RangerResourceDef resourceDef : serviceDef.getResources()) {
-						serviceResourceTrie.put(resourceDef.getName(), new RangerResourceTrie(resourceDef, resourceMatchers, getPolicyEngineOptions().optimizeTagTrieForRetrieval, getPolicyEngineOptions().optimizeTagTrieForSpace, null));
-					}
+				for (RangerServiceDef.RangerResourceDef resourceDef : serviceDef.getResources()) {
+					serviceResourceTrie.put(resourceDef.getName(), new RangerResourceTrie(resourceDef, resourceMatchers, getPolicyEngineOptions().optimizeTagTrieForRetrieval, getPolicyEngineOptions().optimizeTagTrieForSpace, null));
 				}
-				enrichedServiceTags = new EnrichedServiceTags(serviceTags, resourceMatchers, serviceResourceTrie);
 			}
+			enrichedServiceTags = new EnrichedServiceTags(serviceTags, resourceMatchers, serviceResourceTrie);
 		}
 	}
 
@@ -548,7 +549,7 @@ public class RangerTagEnricher extends RangerAbstractContextEnricher {
 			RangerAccessRequestImpl  request = new RangerAccessRequestImpl();
 			request.setResource(accessResource);
 
-			List<RangerServiceResourceMatcher> oldMatchers = getEvaluators(request, enrichedServiceTags);
+			Collection<RangerServiceResourceMatcher> oldMatchers = getEvaluators(request, enrichedServiceTags);
 
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Found [" + oldMatchers.size() + "] matchers for service-resource[" + serviceResource + "]");
@@ -669,7 +670,7 @@ public class RangerTagEnricher extends RangerAbstractContextEnricher {
 			ret = enrichedServiceTags.getTagsForEmptyResourceAndAnyAccess();
 		} else {
 
-			final List<RangerServiceResourceMatcher> serviceResourceMatchers = getEvaluators(request, enrichedServiceTags);
+			final Collection<RangerServiceResourceMatcher> serviceResourceMatchers = getEvaluators(request, enrichedServiceTags);
 
 			if (CollectionUtils.isNotEmpty(serviceResourceMatchers)) {
 
@@ -715,11 +716,11 @@ public class RangerTagEnricher extends RangerAbstractContextEnricher {
 		return ret;
 	}
 
-	private List<RangerServiceResourceMatcher> getEvaluators(RangerAccessRequest request, EnrichedServiceTags enrichedServiceTags) {
+	private Collection<RangerServiceResourceMatcher> getEvaluators(RangerAccessRequest request, EnrichedServiceTags enrichedServiceTags) {
 		if(LOG.isDebugEnabled()) {
 			LOG.debug("==> RangerTagEnricher.getEvaluators(request=" + request + ")");
 		}
-		List<RangerServiceResourceMatcher>  ret        = Collections.EMPTY_LIST;
+		Collection<RangerServiceResourceMatcher>  ret;
 
 		RangerAccessResource                resource   = request.getResource();
 
@@ -734,71 +735,7 @@ public class RangerTagEnricher extends RangerAbstractContextEnricher {
 				perf = RangerPerfTracer.getPerfTracer(PERF_TRIE_OP_LOG, "RangerTagEnricher.getEvaluators(resource=" + resource.getAsString() + ")");
 			}
 
-			List<String>                            resourceKeys = serviceDefHelper.getOrderedResourceNames(resource.getKeys());
-			Set<RangerServiceResourceMatcher>       smallestList = null;
-
-			if (CollectionUtils.isNotEmpty(resourceKeys)) {
-
-				for (String resourceName : resourceKeys) {
-					RangerResourceTrie<RangerServiceResourceMatcher> trie = serviceResourceTrie.get(resourceName);
-
-					if (trie == null) { // if no trie exists for this resource level, ignore and continue to next level
-						continue;
-					}
-
-					Set<RangerServiceResourceMatcher> serviceResourceMatchersForResource = trie.getEvaluatorsForResource(resource.getValue(resourceName), request.getResourceMatchingScope());
-					Set<RangerServiceResourceMatcher> inheritedResourceMatchers = trie.getInheritedEvaluators();
-
-					if (smallestList != null) {
-						if (CollectionUtils.isEmpty(inheritedResourceMatchers) && CollectionUtils.isEmpty(serviceResourceMatchersForResource)) {
-							smallestList = null;
-						} else if (CollectionUtils.isEmpty(inheritedResourceMatchers)) {
-							smallestList.retainAll(serviceResourceMatchersForResource);
-						} else if (CollectionUtils.isEmpty(serviceResourceMatchersForResource)) {
-							smallestList.retainAll(inheritedResourceMatchers);
-						} else {
-							Set<RangerServiceResourceMatcher> smaller, bigger;
-							if (serviceResourceMatchersForResource.size() < inheritedResourceMatchers.size()) {
-								smaller = serviceResourceMatchersForResource;
-								bigger = inheritedResourceMatchers;
-							} else {
-								smaller = inheritedResourceMatchers;
-								bigger = serviceResourceMatchersForResource;
-							}
-							Set<RangerServiceResourceMatcher> tmp = new HashSet<>();
-							if (smallestList.size() < smaller.size()) {
-								smallestList.stream().filter(smaller::contains).forEach(tmp::add);
-								smallestList.stream().filter(bigger::contains).forEach(tmp::add);
-							} else {
-								smaller.stream().filter(smallestList::contains).forEach(tmp::add);
-								if (smallestList.size() < bigger.size()) {
-									smallestList.stream().filter(bigger::contains).forEach(tmp::add);
-								} else {
-									bigger.stream().filter(smallestList::contains).forEach(tmp::add);
-								}
-							}
-							smallestList = tmp;
-						}
-					} else {
-						if (CollectionUtils.isEmpty(inheritedResourceMatchers) || CollectionUtils.isEmpty(serviceResourceMatchersForResource)) {
-							Set<RangerServiceResourceMatcher> tmp = CollectionUtils.isEmpty(inheritedResourceMatchers) ? serviceResourceMatchersForResource : inheritedResourceMatchers;
-							smallestList = resourceKeys.size() == 1 || CollectionUtils.isEmpty(tmp) ? tmp : new HashSet<>(tmp);
-						} else {
-							smallestList = new HashSet<>(serviceResourceMatchersForResource);
-							smallestList.addAll(inheritedResourceMatchers);
-						}
-					}
-
-					if (CollectionUtils.isEmpty(smallestList)) {// no tags for this resource, bail out
-						smallestList = null;
-						break;
-					}
-				}
-			}
-
-			if (smallestList != null) {
-				ret = new ArrayList<>(smallestList);
-			}
+			ret = RangerResourceEvaluatorsRetriever.getEvaluators(serviceResourceTrie, resource.getAsMap(), request.getResourceMatchingScope());
 
 			RangerPerfTracer.logAlways(perf);
 		}

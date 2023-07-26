@@ -20,24 +20,31 @@
 package org.apache.ranger.rest;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
+import javax.persistence.OptimisticLockException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 
+import org.apache.ranger.biz.RangerPolicyAdmin;
 import org.apache.ranger.biz.RangerBizUtil;
 import org.apache.ranger.biz.SecurityZoneDBStore;
 import org.apache.ranger.biz.ServiceDBStore;
@@ -75,6 +82,7 @@ import com.google.common.collect.Sets;
 public class SecurityZoneREST {
     private static final Logger LOG = LoggerFactory.getLogger(SecurityZoneREST.class);
     private static final String STR_USER_NOT_AUTHORIZED_TO_ACCESS_ZONE = "User is not authorized to access zone(s).";
+    private static final String ERR_ANOTHER_SEC_ZONE_OPER_IN_PROGRESS  = "Another security zone operation is already in progress";
 
     @Autowired
     RESTErrorUtil restErrorUtil;
@@ -109,6 +117,8 @@ public class SecurityZoneREST {
 
     @POST
     @Path("/zones")
+    @Consumes({ "application/json" })
+    @Produces({ "application/json" })
     public RangerSecurityZone createSecurityZone(RangerSecurityZone securityZone) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("==> createSecurityZone("+ securityZone + ")");
@@ -121,6 +131,10 @@ public class SecurityZoneREST {
             RangerSecurityZoneValidator validator = validatorFactory.getSecurityZoneValidator(svcStore, securityZoneStore);
             validator.validate(securityZone, RangerValidator.Action.CREATE);
             ret = securityZoneStore.createSecurityZone(securityZone);
+        } catch (OptimisticLockException | org.eclipse.persistence.exceptions.OptimisticLockException excp) {
+            LOG.error("createSecurityZone(" + securityZone + ") failed", excp);
+
+            throw restErrorUtil.createRESTException(HttpServletResponse.SC_CONFLICT, ERR_ANOTHER_SEC_ZONE_OPER_IN_PROGRESS, true);
         } catch(WebApplicationException excp) {
             throw excp;
         } catch(Throwable excp) {
@@ -136,6 +150,8 @@ public class SecurityZoneREST {
 
     @PUT
     @Path("/zones/{id}")
+    @Consumes({ "application/json" })
+    @Produces({ "application/json" })
     public RangerSecurityZone updateSecurityZone(@PathParam("id") Long zoneId,
                                                  RangerSecurityZone securityZone) {
         if (LOG.isDebugEnabled()) {
@@ -158,6 +174,10 @@ public class SecurityZoneREST {
             RangerSecurityZoneValidator validator = validatorFactory.getSecurityZoneValidator(svcStore, securityZoneStore);
             validator.validate(securityZone, RangerValidator.Action.UPDATE);
             ret = securityZoneStore.updateSecurityZoneById(securityZone);
+        } catch (OptimisticLockException | org.eclipse.persistence.exceptions.OptimisticLockException excp) {
+            LOG.error("updateSecurityZone(" + securityZone + ") failed", excp);
+
+            throw restErrorUtil.createRESTException(HttpServletResponse.SC_CONFLICT, ERR_ANOTHER_SEC_ZONE_OPER_IN_PROGRESS, true);
         } catch(WebApplicationException excp) {
             throw excp;
         } catch(Throwable excp) {
@@ -182,6 +202,10 @@ public class SecurityZoneREST {
             RangerSecurityZoneValidator validator = validatorFactory.getSecurityZoneValidator(svcStore, securityZoneStore);
             validator.validate(zoneName, RangerValidator.Action.DELETE);
             securityZoneStore.deleteSecurityZoneByName(zoneName);
+        } catch (OptimisticLockException | org.eclipse.persistence.exceptions.OptimisticLockException excp) {
+            LOG.error("deleteSecurityZone(" + zoneName + ") failed", excp);
+
+            throw restErrorUtil.createRESTException(HttpServletResponse.SC_CONFLICT, ERR_ANOTHER_SEC_ZONE_OPER_IN_PROGRESS, true);
         } catch(WebApplicationException excp) {
             throw excp;
         } catch(Throwable excp) {
@@ -208,6 +232,10 @@ public class SecurityZoneREST {
             RangerSecurityZoneValidator validator = validatorFactory.getSecurityZoneValidator(svcStore, securityZoneStore);
             validator.validate(zoneId, RangerValidator.Action.DELETE);
             securityZoneStore.deleteSecurityZoneById(zoneId);
+        } catch (OptimisticLockException | org.eclipse.persistence.exceptions.OptimisticLockException excp) {
+            LOG.error("deleteSecurityZone(" + zoneId + ") failed", excp);
+
+            throw restErrorUtil.createRESTException(HttpServletResponse.SC_CONFLICT, ERR_ANOTHER_SEC_ZONE_OPER_IN_PROGRESS, true);
         } catch(WebApplicationException excp) {
             throw excp;
         } catch(Throwable excp) {
@@ -222,6 +250,7 @@ public class SecurityZoneREST {
 
     @GET
     @Path("/zones/name/{name}")
+    @Produces({ "application/json" })
     public RangerSecurityZone getSecurityZone(@PathParam("name") String zoneName) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("==> getSecurityZone(name=" + zoneName + ")");
@@ -250,6 +279,7 @@ public class SecurityZoneREST {
 
     @GET
     @Path("/zones/{id}")
+    @Produces({ "application/json" })
     public RangerSecurityZone getSecurityZone(@PathParam("id") Long id) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("==> getSecurityZone(id=" + id + ")");
@@ -282,6 +312,7 @@ public class SecurityZoneREST {
 
     @GET
     @Path("/zones")
+    @Produces({ "application/json" })
     public RangerSecurityZoneList getAllZones(@Context HttpServletRequest request) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("==> getAllZones()");
@@ -316,6 +347,36 @@ public class SecurityZoneREST {
         return ret;
     }
 
+    @GET
+    @Path("/zone-names/{serviceName}/resource")
+    @Produces({ "application/json" })
+    public Collection<String> getZoneNamesForResource(@PathParam("serviceName") String serviceName, @Context HttpServletRequest request) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("==> SecurityZoneREST.getZoneNamesForResource(" + serviceName + ")");
+        }
+
+        if (!serviceRest.isServiceAdmin(serviceName)) {
+            throw restErrorUtil.createRESTException(HttpServletResponse.SC_FORBIDDEN,
+                    "User '" + bizUtil.getCurrentUserLoginId() + "' does not have privilege", true);
+        }
+
+        Collection<String> ret         = null;
+        RangerPolicyAdmin  policyAdmin = serviceRest.getPolicyAdminForDelegatedAdmin(serviceName);
+
+        if (policyAdmin != null) {
+            SearchFilter        filter   = searchUtil.getSearchFilter(request, Collections.emptyList());
+            Map<String, String> resource = filter.getParamsWithPrefix(SearchFilter.RESOURCE_PREFIX, true);
+
+            ret = policyAdmin.getZoneNamesForResource(resource);
+        }
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("<== SecurityZoneREST.getZoneNamesForResource(" + serviceName + "): ret=" + ret);
+        }
+
+        return ret;
+    }
+
 	private void ensureAdminAccess(){
 		if(!bizUtil.isAdmin()){
 			String userName = bizUtil.getCurrentUserLoginId();
@@ -339,31 +400,25 @@ public class SecurityZoneREST {
 				/* Validation for non service related fields of security zone */
 				
 				
-				if (!securityZone.getName().equals(
-						existingSecurityZone.getName())) {
+				if (!Objects.equals(securityZone.getName(), existingSecurityZone.getName())) {
 					throwRestError("User : " + userName
 							+ " is not allowed to edit zone name of zone : " + existingSecurityZone.getName());
-				} else if (!securityZone.getDescription().equals(
-						existingSecurityZone.getDescription())) {
+				} else if (!Objects.equals(securityZone.getDescription(), existingSecurityZone.getDescription())) {
 					throwRestError("User : " + userName
 							+ " is not allowed to edit zone description of zone : " + existingSecurityZone.getName());
 				}
 				if (!serviceMgr.isZoneAdmin(existingSecurityZone.getName())) {
-					if (!securityZone.getAdminUserGroups().equals(
-							existingSecurityZone.getAdminUserGroups())) {
+					if (!Objects.equals(securityZone.getAdminUserGroups(), existingSecurityZone.getAdminUserGroups())) {
 						throwRestError("User : "
 								+ userName
 								+ " is not allowed to edit zone Admin User Group of zone : " + existingSecurityZone.getName());
-					} else if (!securityZone.getAdminUsers().equals(
-							existingSecurityZone.getAdminUsers())) {
+					} else if (!Objects.equals(securityZone.getAdminUsers(), existingSecurityZone.getAdminUsers())) {
 						throwRestError("User : " + userName
 								+ " is not allowed to edit zone Admin User of zone : " + existingSecurityZone.getName());
-					} else if (!securityZone.getAuditUsers().equals(
-							existingSecurityZone.getAuditUsers())) {
+					} else if (!Objects.equals(securityZone.getAuditUsers(), existingSecurityZone.getAuditUsers())) {
 						throwRestError("User : " + userName
 								+ " is not allowed to edit zone Audit User of zone : " + existingSecurityZone.getName());
-					} else if (!securityZone.getAuditUserGroups().equals(
-							existingSecurityZone.getAuditUserGroups())) {
+					} else if (!Objects.equals(securityZone.getAuditUserGroups(), existingSecurityZone.getAuditUserGroups())) {
 						throwRestError("User : "
 								+ userName
 								+ " is not allowed to edit zone Audit User Group of zone : " + existingSecurityZone.getName());
@@ -449,8 +504,7 @@ public class SecurityZoneREST {
 							.getServices().get(svc);
 
 					if (rangerSecurityZnSvcFromUI != null) {
-						if (!rangerSecurityZnSvcFromDB.getResources().equals(
-								rangerSecurityZnSvcFromUI.getResources())) {
+						if (!Objects.equals(rangerSecurityZnSvcFromDB.getResources(), rangerSecurityZnSvcFromUI.getResources())) {
 							if (!svcStore.isServiceAdminUser(svc, userName)) {
 								throwRestError("User : "
 										+ userName
