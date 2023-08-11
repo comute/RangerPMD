@@ -19,6 +19,7 @@
 
 package org.apache.ranger.db;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -27,6 +28,7 @@ import java.util.Objects;
 
 import javax.persistence.NoResultException;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.ranger.common.RangerCommonEnums;
 import org.apache.ranger.common.RangerConstants;
 import org.apache.ranger.common.db.BaseDao;
@@ -154,6 +156,31 @@ public class XXPortalUserDao extends BaseDao<XXPortalUser> {
 		return xXPortalUser;
 	}
 
+	@SuppressWarnings("unchecked")
+	public List<XXPortalUser> findByLoginIdList(List<String> loginIdList) {
+		if (CollectionUtils.isEmpty(loginIdList)) {
+			return new ArrayList<>();
+		}
+		try {
+			return getEntityManager().createNamedQuery("XXPortalUser.findByLoginIdList").setParameter("loginIdList", loginIdList).getResultList();
+		} catch (NoResultException e) {
+			return new ArrayList<>();
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public List<XXPortalUser> findByIdList(List<Long> idList) {
+		if (CollectionUtils.isEmpty(idList)) {
+			return new ArrayList<>();
+		}
+		try {
+			return getEntityManager().createNamedQuery("XXPortalUser.findByIdList").setParameter("idList", idList).getResultList();
+		} catch (NoResultException e) {
+			return new ArrayList<>();
+		}
+  }
+
+  @SuppressWarnings("unchecked")
 	public Map<String, Long> getCountByUserRole() {
 		Map<String, Long> ret = Collections.emptyMap();
 		List<Object[]> rows = (List<Object[]>) getEntityManager().createNamedQuery("XXPortalUser.getCountByUserRole").getResultList();
@@ -167,5 +194,5 @@ public class XXPortalUserDao extends BaseDao<XXPortalUser> {
 			}
 		}
 		return ret;
-	}
+
 }
