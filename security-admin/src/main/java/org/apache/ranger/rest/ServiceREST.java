@@ -35,6 +35,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.IntStream;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 import javax.annotation.PostConstruct;
@@ -201,6 +202,9 @@ public class ServiceREST {
 
 	@Autowired
 	XUserService xUserService;
+
+	@Autowired
+	SecurityZoneDBStore securityZoneDBStore;
 
 	@Autowired
 	AssetMgr assetMgr;
@@ -1037,9 +1041,13 @@ public class ServiceREST {
 										RangerConstants.ROLE_USER)) {
 							
 							List<RangerService> updateServiceList = new ArrayList<RangerService>();
+							List<RangerSecurityZone> securityZones = zoneStore.getSecurityZones(null);
+							Set<String> serviceNames = securityZones.stream().filter(sz -> sz.getAdminUsers().contains(loggedInVXUser.getName()))
+																											.flatMap(sz -> sz.getServices().keySet().stream()).collect(
+									Collectors.toSet());
 							for(RangerService rangerService : paginatedSvcs.getList()){
-								
-								if(rangerService != null){
+
+								if(rangerService != null && serviceNames.contains(rangerService.getName())){
 									updateServiceList.add(hideCriticalServiceDetailsForRoleUser(rangerService));
 								}
 							}
